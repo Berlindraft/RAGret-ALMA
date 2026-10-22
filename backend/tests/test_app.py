@@ -58,12 +58,24 @@ class RAGretTests(unittest.TestCase):
         d = r.json()[-1]
         self.assertEqual(d['document_date'], '2026-05-01')
         self.assertFalse(d['synthetic'])
+        self.assertEqual(d['source_type'], 'reference')
         self.assertEqual(d['pages'], 1)
         e = self.client.get('/api/evidence/' + d['first_chunk_id']).json()
         self.assertEqual(e['section'], 'Decision: Search')
         self.assertIn('approved full-text search', e['text'])
         self.assertTrue(main.DATA.exists())
         self.assertEqual(len(self.client.delete('/api/documents/' + d['document_id']).json()), 5)
+
+    def test_conversation_upload_preserves_source_type(self):
+        r = self.client.post('/api/documents', data={'source_type': 'conversation'},
+            files=[('files', ('thread.txt', b'Date: 2026-10-22\nAlex: We approved search.', 'text/plain'))])
+        self.assertEqual(r.status_code, 200)
+        doc = r.json()[-1]
+        self.assertEqual(doc['source_type'], 'conversation')
+        saved = json.loads(main.DATA.read_text('utf-8'))
+        self.assertEqual(saved[-1]['source_type'], 'conversation')
+        self.assertEqual(self.client.post('/api/documents', data={'source_type': 'unknown'},
+            files=[('files', ('invalid.txt', b'Text', 'text/plain'))]).status_code, 422)
 
     def test_undated_source_and_bad_types(self):
         r = self.client.post('/api/documents', files=[('files', ('notes.txt', b'We proposed search.', 'text/plain'))])

@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from app import graph_store as store
 from app.graph_schema import EXTRACT_SYSTEM, Extraction, validate_extraction, normalize
-from app.provider import structured
+from app.provider import structured, ProviderUnavailable
 
 router = APIRouter(prefix="/api/workspace", tags=["Decision graph"])
 extraction_lock = asyncio.Lock()
@@ -93,6 +93,41 @@ class ExtractRequest(BaseModel):
     force: bool = False
 
 
+def reference_context(chunks, docs, limit=8):
+    """Select bounded, relevant policy passages without treating them as decisions."""
+    candidates = [
+        dict(c, filename=d["filename"], document_id=d["document_id"])
+        for d in docs
+        if d.get("source_type") == "reference"
+        for c in d["chunks"]
+    ]
+    query = set(core().tokens(" ".join(c["text"] for c in chunks)))
+    if not candidates or not query:
+        return []
+    words = [set(core().tokens(c["text"])) for c in candidates]
+    idf = {
+        w: math.log((len(words) + 1) / (1 + sum(w in text for text in words))) + 1
+        for w in query
+    }
+    scored = sorted(
+        (
+            (sum(idf[w] ** 2 for w in query & text) / math.sqrt(max(1, len(text))), c)
+            for text, c in zip(words, candidates)
+        ),
+        key=lambda pair: -pair[0],
+    )
+    result, per_page = [], {}
+    for score, chunk in scored:
+        key = (chunk["document_id"], chunk["page"])
+        if score <= 0 or per_page.get(key, 0) >= 2:
+            continue
+        result.append(chunk)
+        per_page[key] = per_page.get(key, 0) + 1
+        if len(result) >= limit:
+            break
+    return result
+
+
 @router.post("/extract")
 async def extract(body: ExtractRequest):
     async with extraction_lock:
@@ -115,10 +150,26 @@ async def extract(body: ExtractRequest):
                 previous
                 and previous["fingerprint"] == store.fingerprint(doc)
                 and not body.force
+                and (
+                    doc.get("source_type") != "reference"
+                    or previous["engine"] == "reference-index"
+                )
             ):
                 results.append(dict(document_id=doc["document_id"], state="unchanged"))
                 continue
             try:
+                if doc.get("source_type") == "reference":
+                    store.store_record(
+                        doc, dict(decisions=[]), "reference-index", main.documents
+                    )
+                    results.append(
+                        dict(
+                            document_id=doc["document_id"],
+                            state="indexed",
+                            observations=0,
+                        )
+                    )
+                    continue
                 if sum(len(c["text"]) for c in doc["chunks"]) > 60000:
                     raise HTTPException(
                         413,
@@ -147,20 +198,23 @@ async def extract(body: ExtractRequest):
                     batches.append(batch)
                 decisions = []
                 for chunks in batches:
+                    references = reference_context(chunks, main.documents)
                     result = await structured(
                         EXTRACT_SYSTEM,
                         dict(
                             document=dict(
                                 filename=doc["filename"],
+                                source_type=doc.get("source_type", "reference"),
                                 document_date=doc["document_date"],
                                 synthetic=doc["synthetic"],
                             ),
                             chunks=chunks,
+                            reference_chunks=references,
                             existing_decisions=identities,
                             existing_clusters=clusters,
                         ),
                         Extraction,
-                        lambda r: validate_extraction(r, chunks),
+                        lambda r: validate_extraction(r, chunks, references),
                         max_tokens=8000,
                     )
                     decisions.extend(result["decisions"])
@@ -365,12 +419,29 @@ async def ask(body: GraphQuestion):
                     dict(core().get_evidence(cid), evidence_id=f"E{len(chunks)+1}")
                 )
                 seen.add(cid)
+    # Include reference guidance without inventing a decision event for the policy.
+    for edge in graph["edges"]:
+        if edge["kind"] != "supports" or edge["target"] not in ids:
+            continue
+        for receipt in edge["receipts"]:
+            cid = receipt["chunk_id"]
+            if receipt.get("source_type") == "reference" and cid not in seen:
+                chunks.append(
+                    dict(core().get_evidence(cid), evidence_id=f"E{len(chunks)+1}")
+                )
+                seen.add(cid)
     if not chunks:
         raise HTTPException(
             409, "The graph has no source receipts for these decisions."
         )
     # Bound model context; all selected decision traces still have a stable saved identity.
-    evidence = chunks[:12]
+    reference_evidence = [c for c in chunks if c.get("source_type") == "reference"]
+    conversation_evidence = [c for c in chunks if c.get("source_type") != "reference"]
+    evidence = (
+        conversation_evidence[:8] + reference_evidence[:4]
+        if reference_evidence
+        else chunks[:12]
+    )
     for e in evidence:
         e["graph_context"] = [
             dict(
@@ -393,14 +464,58 @@ async def ask(body: GraphQuestion):
         if e["source"] in ids and e["target"] in ids
     ]
     evidence[0]["documented_relationships"] = links
-    result = await core().generate(body.question, evidence)
+    engine = core().health()["provider"]
+    try:
+        result = await core().generate(body.question, evidence)
+    except ProviderUnavailable as exc:
+        # These are saved traces, not a generated answer or a replacement extraction.
+        primary = matches[0]["node"]
+        props = primary["props"]
+        citations = {e["chunk_id"]: e["evidence_id"] for e in evidence}
+        events = [
+            dict(
+                date=o["date"],
+                date_certainty="explicit" if o["date"] else "uncertain",
+                state=o["state"],
+                title=o["title"],
+                description=o["description"],
+                evidence_ids=[citations[o["receipt"]["chunk_id"]]],
+            )
+            for o in props["observations"]
+            if o["receipt"]["chunk_id"] in citations
+        ]
+        text = f"Saved decision: {primary['label']} ({props['scope']}) — {props['state']}. {props['summary']}"
+        if props["people"]:
+            text += " Recorded participants: " + ", ".join(props["people"]) + "."
+        if re.search(r"depend|downstream|impact", body.question, re.I):
+            labels = {n["id"]: n["label"] for n in selected}
+            relationships = [
+                f"{labels[e['source']]} depends on {labels[e['target']]}"
+                for e in links
+                if e["kind"] == "depends_on"
+                and primary["id"] in (e["source"], e["target"])
+            ]
+            if relationships:
+                text += " Recorded links: " + "; ".join(relationships) + "."
+        result = dict(
+            answer=text,
+            current_status=props["state"],
+            status_explanation=props["summary"],
+            evidence_sufficient=False,
+            events=events,
+            limitations=[
+                "Live AI is unavailable. Showing related saved decision traces, without generating a new answer. These records may not fully answer your question.",
+                exc.detail,
+            ],
+        )
+        engine = "saved-graph"
     result["events"].sort(key=lambda e: e["date"] or "9999")
     return dict(
         result,
         question=body.question,
         evidence=evidence,
         decision_ids=list(ids),
-        engine=core().health()["provider"],
+        engine=engine,
     )
 
 

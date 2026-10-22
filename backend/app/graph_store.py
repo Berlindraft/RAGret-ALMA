@@ -207,6 +207,7 @@ def build_graph(docs, extracted):
             date=doc["document_date"],
             synthetic=doc["synthetic"],
             pages=doc["pages"],
+            source_type=doc.get("source_type", "reference"),
             first_chunk_id=doc["chunks"][0]["chunk_id"] if doc["chunks"] else None,
         )
     # Materialize all decisions before resolving relationships.
@@ -237,6 +238,42 @@ def build_graph(docs, extracted):
     for did, group in groups.items():
         for item, receipt in group["raw"]:
             edge(receipt["document_id"], did, "supports", receipt)
+            for ref in item.get("references", []):
+                for reference_doc in docs:
+                    if reference_doc.get("source_type") != "reference":
+                        continue
+                    reference_chunk = next(
+                        (
+                            c
+                            for c in reference_doc["chunks"]
+                            if c["chunk_id"] == ref["chunk_id"]
+                        ),
+                        None,
+                    )
+                    if not reference_chunk or normalize(ref["quote"]) not in normalize(
+                        reference_chunk["text"]
+                    ):
+                        continue
+                    reference_receipt = dict(
+                        document_id=reference_doc["document_id"],
+                        filename=reference_doc["filename"],
+                        chunk_id=reference_chunk["chunk_id"],
+                        page=reference_chunk["page"],
+                        section=reference_chunk["section"],
+                        document_date=reference_doc["document_date"],
+                        quote=ref["quote"],
+                        synthetic=reference_doc["synthetic"],
+                        source_type="reference",
+                    )
+                    edge(
+                        reference_doc["document_id"], did, "supports", reference_receipt
+                    )
+                    edge(
+                        did,
+                        node("constraint", ref["label"]),
+                        "constrained_by",
+                        reference_receipt,
+                    )
             cluster = node("cluster", item["cluster"])
             edge(did, cluster, "in_cluster", receipt)
             for topic in item.get("topics", []):
@@ -331,6 +368,8 @@ def rebuild(docs):
 
 
 def snapshot(docs):
+    from app.main import original_path
+
     with connection() as con:
         nodes = [
             dict(
@@ -368,6 +407,7 @@ def snapshot(docs):
         sources.append(
             {
                 **{k: v for k, v in d.items() if k != "chunks"},
+                "has_original": original_path(d).is_file(),
                 "first_chunk_id": d["chunks"][0]["chunk_id"] if d["chunks"] else None,
                 "chunk_count": len(d["chunks"]),
                 "extraction_state": (

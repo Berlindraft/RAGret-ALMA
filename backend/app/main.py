@@ -10,8 +10,9 @@ from typing import Literal
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -112,12 +113,108 @@ def public_doc(doc):
         **{k: v for k, v in doc.items() if k != "chunks"},
         "chunk_count": len(doc["chunks"]),
         "first_chunk_id": doc["chunks"][0]["chunk_id"] if doc["chunks"] else None,
+        "has_original": original_path(doc).is_file(),
     }
+
+
+def original_path(doc):
+    key = hashlib.sha256(doc["document_id"].encode()).hexdigest()
+    return DATA.parent / "originals" / key
+
+
+def save_original(doc, content):
+    path = original_path(doc)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+
+
+def find_document(document_id):
+    doc = next((d for d in documents if d["document_id"] == document_id), None)
+    if not doc:
+        raise HTTPException(404, "Source not found.")
+    return doc
+
+
+@app.get("/api/documents/{document_id}/file")
+def document_file(document_id: str, download: bool = False):
+    doc = find_document(document_id)
+    path = original_path(doc)
+    if not path.is_file():
+        raise HTTPException(
+            404, "The original file is unavailable for this older source."
+        )
+    media = (
+        "application/pdf"
+        if doc["filename"].lower().endswith(".pdf")
+        else "text/plain; charset=utf-8"
+    )
+    return FileResponse(
+        path,
+        filename=doc["filename"],
+        media_type=media,
+        content_disposition_type="attachment" if download else "inline",
+        headers={"X-Content-Type-Options": "nosniff"},
+    )
+
+
+@app.get("/api/documents/{document_id}/content")
+def document_content(document_id: str):
+    doc = find_document(document_id)
+    path = original_path(doc)
+    is_pdf = doc["filename"].lower().endswith(".pdf")
+    if path.is_file():
+        if is_pdf:
+            import pymupdf
+
+            with pymupdf.open(stream=path.read_bytes(), filetype="pdf") as pdf:
+                pages = [dict(page=i + 1, text=p.get_text()) for i, p in enumerate(pdf)]
+        else:
+            pages = [dict(page=1, text=path.read_text("utf-8-sig"))]
+    else:
+        # Older sources retained excerpts only. Do not present these as the original file.
+        pages = [
+            dict(
+                page=page,
+                text="\n\n".join(c["text"] for c in doc["chunks"] if c["page"] == page),
+            )
+            for page in sorted({c["page"] for c in doc["chunks"]})
+        ]
+    return dict(
+        source=public_doc(doc),
+        format="pdf" if is_pdf and path.is_file() else "text",
+        pages=pages,
+        original_available=path.is_file(),
+    )
+
+
+@app.get("/api/documents/{document_id}/pages/{page}/image")
+def document_page_image(document_id: str, page: int):
+    doc = find_document(document_id)
+    path = original_path(doc)
+    if not doc["filename"].lower().endswith(".pdf") or not path.is_file():
+        raise HTTPException(404, "PDF original is unavailable.")
+    import pymupdf
+
+    with pymupdf.open(stream=path.read_bytes(), filetype="pdf") as pdf:
+        if page < 1 or page > len(pdf):
+            raise HTTPException(404, "Page not found.")
+        source = pdf[page - 1]
+        scale = min(1.8, 1800 / max(source.rect.width, source.rect.height))
+        image = source.get_pixmap(
+            matrix=pymupdf.Matrix(scale, scale), alpha=False
+        ).tobytes("png")
+    return Response(
+        image,
+        media_type="image/png",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
 
 
 @app.get("/api/health")
 @app.get("/health")
 def health():
+    from app.provider import connection_status
+
     provider = os.getenv("AI_PROVIDER", "deepseek")
     return dict(
         status="ok",
@@ -132,12 +229,21 @@ def health():
             if provider == "deepseek"
             else os.getenv("ALMA_MODEL", "Gemma 4")
         ),
+        **connection_status(),
     )
 
 
 @app.get("/api/documents")
 def list_documents():
     return [public_doc(d) for d in documents]
+
+
+@app.post("/api/provider/check")
+async def check_provider():
+    from app.provider import check_connection
+
+    await check_connection()
+    return health()
 
 
 @app.post("/api/demo/reset")
@@ -155,13 +261,17 @@ def delete_document(document_id: str):
 
 
 @app.post("/api/documents")
-async def upload_documents(files: list[UploadFile] = File(...)):
+async def upload_documents(
+    files: list[UploadFile] = File(...),
+    source_type: Literal["reference", "conversation"] = Form("reference"),
+):
     if len(files) + len(documents) > 8:
         raise HTTPException(
             400,
             "A workspace supports up to 8 documents. Remove a source before adding more.",
         )
     pending = []
+    originals = []
     for file in files:
         name = Path(file.filename or "untitled").name
         ext = Path(name).suffix.lower()
@@ -228,11 +338,15 @@ async def upload_documents(files: list[UploadFile] = File(...)):
                 title=Path(name).stem.replace("_", " "),
                 document_date=match.group(1) if match else None,
                 synthetic=False,
+                source_type=source_type,
                 pages=len(pages),
                 warnings=warnings,
                 chunks=chunks,
             )
         )
+        originals.append((pending[-1], content))
+    for doc, content in originals:
+        save_original(doc, content)
     documents.extend(pending)
     save()
     return list_documents()

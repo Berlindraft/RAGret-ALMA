@@ -1,0 +1,182 @@
+/* Shared dimensions for the larger, more readable workspace. */
+:root {
+  font-size: 100%;
+  --sidebar-width: 260px;
+  --control-height: 44px;
+}
+.sidebar { width: var(--sidebar-width); padding: 28px 20px 12px; overflow-y: auto; scrollbar-width: thin; }
+.main-area { margin-left: var(--sidebar-width); }
+.brand { font-size: 1.875rem; }
+.brand-mark { width: 44px; height: 44px; border-radius: 11px; margin-right: 12px; }
+.workspace-switch { padding: 14px 12px; border-radius: 10px; margin-top: 28px; gap: 12px; }
+.workspace-avatar { width: 36px; height: 36px; }
+.sidebar nav button { min-height: 50px; padding: 13px 12px; gap: 12px; border-radius: 9px; font-size: 1rem; }
+.sidebar nav button > svg { width: 21px; height: 21px; }
+.cluster-item { min-height: 40px; padding: 10px 12px; }
+.local-status small { max-width: none; }
+.sidebar-bottom { padding-top: 24px; }
+.team-mark > span { width: 36px; height: 36px; }
+.topbar { height: auto; min-height: 82px; padding: 16px 32px; gap: 14px; flex-wrap: wrap; }
+.topbar-actions { gap: 12px; flex-wrap: wrap; }
+.breadcrumb { font-size: .9375rem; }
+.provider-status { min-height: 40px; font-size: .875rem; }
+main { padding: 36px 32px 0; }
+.page-heading { margin-bottom: 30px; }
+.page-heading p { font-size: 1rem; }
+.primary-button, .secondary-button { min-height: var(--control-height); padding: 11px 17px; font-size: .9375rem; border-radius: 9px; gap: 9px; }
+.topbar-actions .primary-button, .topbar-actions .secondary-button { font-size: .9375rem; }
+.icon-button { min-width: 42px; min-height: 42px; padding: 10px; border-radius: 8px; }
+.text-button, .help-link { min-height: 42px; font-size: .875rem; }
+svg.lucide { min-width: 18px; min-height: 18px; flex-shrink: 0; }
+.icon-button > svg { width: 20px; height: 20px; }
+.status > svg { min-width: 14px; min-height: 14px; }
+input, textarea, select { font-size: 1rem; }
+select { min-height: 44px; padding: 10px 12px; }
+.stats-strip { padding: 23px 0; gap: 30px; margin-bottom: 28px; }
+.stats-strip > div { font-size: .9375rem; gap: 10px; }
+.stats-strip strong { font-size: 1.5rem; }
+.ask-section { margin-bottom: 28px; }
+.ask-section form { min-height: 68px; padding: 9px 10px 9px 20px; border-radius: 11px; gap: 15px; }
+.ask-section input { font-size: 1.0625rem; padding: 12px 0; }
+.ask-button { min-height: 46px; padding: 12px 18px; font-size: .9375rem; }
+.suggested-questions { flex-wrap: wrap; gap: 8px 16px; }
+.suggested-questions button { min-height: 36px; font-size: .875rem; line-height: 1.6; text-align: left; }
+.graph-layout { grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; }
+.graph-layout.is-expanded { grid-template-columns: minmax(0, 1fr) 380px; padding: 18px; }
+.graph-layout.no-inspector { grid-template-columns: minmax(0, 1fr); }
+.graph-toolbar { padding: 15px 18px; gap: 12px; flex-wrap: wrap; }
+.segmented-control button { min-height: 40px; padding: 9px 13px; font-size: .875rem; }
+.context-toggle { min-height: 40px; gap: 8px; font-size: .875rem; }
+.context-toggle input { width: 17px; height: 17px; }
+.graph-toolbar .icon-button { min-height: 42px; }
+.graph-subtoolbar { padding: 12px 18px; min-height: 60px; }
+.graph-subtoolbar select { font-size: .9375rem; max-width: min(380px, 100%); min-height: 40px; }
+.graph-canvas { height: 650px; }
+.trace-node { width: 260px; padding: 16px; border-radius: 11px; }
+.trace-node > strong { font-size: 1.0625rem; line-height: 1.45; margin-top: 11px; }
+.node-meta, .node-meta > small { font-size: .8125rem; }
+.node-icon { width: 26px; height: 26px; }
+.node-icon > svg { min-width: 16px; min-height: 16px; width: 16px; height: 16px; }
+.node-foot { margin-top: 12px; gap: 8px; }
+.node-foot > span:not(.status), .node-foot .status { font-size: .75rem; }
+.node-foot .status { padding: 5px 7px; }
+.react-flow__controls-button { width: 40px !important; height: 40px !important; }
+.react-flow__controls-button svg { width: 17px !important; height: 17px !important; }
+.graph-legend { padding: 16px 18px; gap: 12px 18px; }
+.graph-legend > span { font-size: .8125rem; }
+.canvas-hint { font-size: .8125rem; background: #fafbfce8; padding: 7px 9px; border-radius: 6px; }
+.inspector { max-height: 940px; border-radius: 12px; }
+.inspector-heading { padding: 16px 18px; }
+.inspector-title { padding: 24px; }
+.inspector-title h2 { font-size: 1.75rem; }
+.inspector-body { padding: 0 24px 24px; }
+.detail-tabs { padding: 0 22px; gap: 18px; }
+.detail-tabs button { font-size: .9375rem; min-height: 48px; }
+.detail-section h4 { font-size: .8125rem; letter-spacing: .7px; }
+.detail-section > p { font-size: 1rem; line-height: 1.8; }
+.facet-link, .relation-link { padding-top: 12px; padding-bottom: 12px; }
+.receipt-card { padding: 18px; }
+.receipt-card blockquote { font-size: 1rem; }
+.status { font-size: .8125rem; padding: 5px 9px; gap: 6px; }
+.scope-label { font-size: .875rem; }
+.register-filters { gap: 12px; }
+.search-field { min-height: 48px; padding: 11px 14px; }
+.search-field input { font-size: 1rem; }
+.register-filters select { min-height: 48px; font-size: .9375rem; }
+.decision-table th { padding: 18px 22px; }
+.decision-table td { padding: 23px 22px; font-size: .9375rem; }
+.table-decision strong { font-size: 1.0625rem; }
+.timeline-list { padding: 32px; }
+.timeline-row { gap: 22px; padding-bottom: 36px; }
+.timeline-row > time { width: 110px; font-size: .875rem; }
+.timeline-row:not(:last-child):before { left: 135px; }
+.timeline-row-heading { flex-wrap: wrap; }
+.source-dropzone { padding: 32px; gap: 24px; flex-wrap: wrap; }
+.source-dropzone > div:not(.upload-actions) { flex: 1; min-width: 220px; }
+.source-row { padding: 26px; gap: 18px; flex-wrap: wrap; }
+.source-file-icon { width: 50px; height: 54px; border-radius: 10px; }
+.source-row-title { flex: 1; min-width: 220px; }
+.source-row-title > button { font-size: 1.0625rem; }
+.source-row-title > span { font-size: .875rem; }
+.source-row .source-actions { gap: 8px; }
+.source-row .source-actions .secondary-button { min-height: 44px; padding: 10px 13px; font-size: .9375rem; }
+.source-extraction > small { font-size: .8125rem; }
+.extraction-state { padding: 6px 9px; font-size: .875rem; }
+.directory-card { padding: 24px; min-height: 100px; }
+.dialog { width: 640px; border-radius: 16px; }
+.dialog.wide { width: 920px; }
+.dialog-heading { padding: 17px 24px; font-size: 1rem; }
+.dialog.source-viewer-dialog { width: 1240px; }
+.viewer-heading { padding: 26px 30px; }
+.viewer-toolbar { padding: 16px 28px; flex-wrap: wrap; }
+.viewer-pagination input { min-height: 42px; width: 68px; }
+.viewer-pagination label, .viewer-search > span { font-size: .9375rem; }
+.viewer-search input { font-size: 1rem; }
+.transcript-message { padding: 24px; gap: 16px; margin-bottom: 20px; }
+.speaker-avatar { width: 42px; height: 42px; font-size: .875rem; }
+.transcript-message p, .transcript-paragraph { font-size: 1.0625rem; line-height: 1.85; }
+.transcript-message header strong { font-size: 1.0625rem; }
+.transcript-scroll { padding-left: max(28px, calc((100% - 900px) / 2)); padding-right: max(28px, calc((100% - 900px) / 2)); }
+.evidence-footer { flex-wrap: wrap; gap: 14px; }
+.evidence-footer > p { flex: 1 1 100%; }
+@media (max-width: 1280px) {
+  .graph-layout { grid-template-columns: minmax(0, 1fr); }
+  .graph-layout.is-expanded { grid-template-columns: minmax(0, 1fr) 350px; }
+  .inspector { max-height: none; }
+  .inspector-body { max-height: 680px; }
+}
+@media (max-width: 760px) {
+  .sidebar { width: 280px; padding: 24px 20px 12px; }
+  .main-area { margin-left: 0; }
+  main { padding: 28px 18px 0; }
+  .topbar { padding: 12px 18px; gap: 10px; min-height: 78px; }
+  .topbar-actions { gap: 8px; margin-left: auto; }
+  .topbar .primary-button, .topbar .secondary-button { min-height: 44px; font-size: .875rem; padding: 10px 12px; }
+  .page-heading h1 { font-size: 2rem; }
+  .page-heading p { font-size: 1rem; }
+  .stats-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 20px 0; gap: 16px; }
+  .stats-strip > div { font-size: .9375rem; gap: 9px; }
+  .stats-strip strong { font-size: 1.5rem; }
+  .stats-strip > button { grid-column: 1 / -1; margin: 0; }
+  input, textarea, select, .ask-section input { font-size: 1rem; }
+  .ask-section form { padding: 9px 9px 9px 14px; gap: 10px; }
+  .ask-button { min-height: 44px; min-width: 44px; padding: 11px; }
+  .suggested-questions button { font-size: .875rem; min-height: 40px; }
+  .graph-toolbar { padding: 12px; gap: 10px; }
+  .segmented-control button { min-height: 40px; font-size: .8125rem; padding: 9px 10px; }
+  .context-toggle { font-size: .875rem; }
+  .graph-subtoolbar { padding: 10px 14px; }
+  .graph-subtoolbar select { font-size: .9375rem; max-width: 100%; }
+  .graph-canvas { height: 520px; }
+  .graph-legend > span { font-size: .75rem; }
+  .graph-layout.is-expanded { grid-template-columns: minmax(0, 1fr); padding: 10px; }
+  .inspector-title h2 { font-size: 1.625rem; }
+  .detail-tabs button { font-size: .9375rem; }
+  .timeline-list { padding: 22px 18px; }
+  .timeline-row > time { width: 74px; font-size: .8125rem; }
+  .timeline-row { gap: 12px; }
+  .timeline-row:not(:last-child):before { left: 89px; }
+  .timeline-row-heading > button { font-size: 1rem; }
+  .source-dropzone { padding: 24px 20px; gap: 18px; }
+  .source-dropzone > div:not(.upload-actions) { min-width: 100%; }
+  .upload-actions { flex-wrap: wrap; }
+  .source-row { padding: 22px 18px; gap: 14px; }
+  .source-row-title { min-width: 0; flex: 1 1 calc(100% - 70px); }
+  .source-extraction { margin-left: 0; text-align: left; max-width: none; }
+  .source-extraction > small { font-size: .8125rem; }
+  .source-row .source-actions { flex-basis: 100%; justify-content: flex-start; }
+  .source-row .source-actions .secondary-button { font-size: .875rem; }
+  .dialog-backdrop { padding: 12px; }
+  .dialog-heading { padding: 12px 18px; }
+  .viewer-heading { padding: 20px; }
+  .viewer-heading h2 { font-size: 1.25rem; }
+  .viewer-heading p { font-size: .875rem; }
+  .viewer-download { font-size: .9375rem; }
+  .viewer-toolbar { padding: 12px 18px; }
+  .viewer-pagination { gap: 3px; }
+  .viewer-pagination label { font-size: .875rem; }
+  .transcript-scroll { padding: 20px 14px; }
+  .transcript-message { padding: 18px 14px; gap: 12px; }
+  .speaker-avatar { width: 34px; height: 34px; font-size: .75rem; }
+  .transcript-message p, .transcript-paragraph { font-size: 1rem; }
+}

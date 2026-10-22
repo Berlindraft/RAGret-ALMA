@@ -67,12 +67,12 @@ export default function Inspector({
   const observations = node.props.observations || [];
   const receipts =
     node.kind === "decision"
-      ? observations.map((o) => ({
+      ? [...observations.map((o) => ({
           ...o.receipt,
           title: o.title,
           date: o.date,
           engine: o.engine,
-        }))
+        })), ...connections.filter((e) => e.kind === "supports").flatMap((e) => e.receipts)]
       : connections.flatMap((e) => e.receipts);
   const uniqueReceipts = receipts.filter(
     (r, i, all) =>

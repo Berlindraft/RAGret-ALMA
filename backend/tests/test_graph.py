@@ -44,7 +44,9 @@ class GraphTests(unittest.TestCase):
 
     def upload(self, text, name="new.md"):
         r = self.client.post(
-            "/api/documents", files=[("files", (name, text.encode(), "text/markdown"))]
+            "/api/documents",
+            data={"source_type": "conversation"},
+            files=[("files", (name, text.encode(), "text/markdown"))],
         )
         self.assertEqual(r.status_code, 200, r.text)
         return r.json()[-1]["document_id"]
@@ -93,11 +95,11 @@ class GraphTests(unittest.TestCase):
 
     def test_actor_constraint_cluster_filters(self):
         rows = self.client.get(
-            "/api/workspace/search", params={"person": "Adrian Cruz"}
+            "/api/workspace/search", params={"person": "Raymund Zyron"}
         ).json()
         self.assertGreaterEqual(len(rows), 3)
         for row in rows:
-            self.assertIn("Adrian Cruz", row["node"]["props"]["people"])
+            self.assertIn("Raymund Zyron", row["node"]["props"]["people"])
         rows = self.client.get(
             "/api/workspace/search", params={"constraint": "May 1 delivery deadline"}
         ).json()

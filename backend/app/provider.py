@@ -2,8 +2,88 @@
 
 import json
 import os
+import hashlib
+from datetime import datetime, timezone
 import httpx
 from fastapi import HTTPException
+
+_status = {}
+
+
+class ProviderUnavailable(HTTPException):
+    """Transport failed; callers may show explicitly labeled stored evidence."""
+
+
+def _status_key():
+    provider = os.getenv("AI_PROVIDER", "deepseek")
+    prefix = "DEEPSEEK" if provider == "deepseek" else "ALMA"
+    return (
+        provider,
+        os.getenv(prefix + "_MODEL", ""),
+        os.getenv("ALMA_API_URL", ""),
+        hashlib.sha256(os.getenv(prefix + "_API_KEY", "").encode()).hexdigest(),
+    )
+
+
+def connection_status():
+    return _status.get(
+        _status_key(),
+        {
+            "connection_status": "unknown",
+            "connection_message": "Connection has not been checked yet.",
+        },
+    )
+
+
+def _mark(status, message):
+    _status[_status_key()] = dict(
+        connection_status=status,
+        connection_message=message,
+        connection_checked_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+async def check_connection():
+    """Check authenticated model access without requesting a generated completion."""
+    if os.getenv("AI_PROVIDER", "deepseek") != "deepseek":
+        return connection_status()
+    key = os.getenv("DEEPSEEK_API_KEY")
+    if not key:
+        _mark("unavailable", "No DeepSeek key is configured.")
+        return connection_status()
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(12, connect=8)) as client:
+            response = await client.get(
+                "https://api.deepseek.com/models",
+                headers={"Authorization": "Bearer " + key},
+            )
+        if response.status_code == 200:
+            available = {m["id"] for m in response.json().get("data", [])}
+            if os.getenv("DEEPSEEK_MODEL", "deepseek-flash") in available:
+                _mark(
+                    "connected",
+                    "DeepSeek authenticated successfully; the configured model is available.",
+                )
+            else:
+                _mark(
+                    "unavailable",
+                    "DeepSeek connected, but the configured model is not available for this key.",
+                )
+        else:
+            _mark(
+                "unavailable",
+                f"DeepSeek connection check returned HTTP {response.status_code}. Check key access and account status.",
+            )
+    except httpx.RequestError:
+        _mark(
+            "unavailable",
+            "DeepSeek could not be reached. Check the network connection, then retry.",
+        )
+    except (ValueError, KeyError, TypeError, AttributeError):
+        _mark(
+            "unavailable", "DeepSeek returned an unexpected connection-check response."
+        )
+    return connection_status()
 
 
 async def structured(system, content, schema, validate=None, max_tokens=6500):
@@ -76,12 +156,15 @@ async def structured(system, content, schema, validate=None, max_tokens=6500):
         return replace(template)
 
     try:
-        async with httpx.AsyncClient(timeout=90) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(90, connect=8, write=30, pool=10)
+        ) as client:
             for attempt in range(2):
                 response = await client.post(
                     url, json=payload(), headers={header: prefix + key}
                 )
                 response.raise_for_status()
+                _mark("connected", "The last provider request connected successfully.")
                 value = response.json()
                 for part in path.split(".") if path else []:
                     value = value[int(part)] if isinstance(value, list) else value[part]
@@ -103,12 +186,25 @@ async def structured(system, content, schema, validate=None, max_tokens=6500):
                         }
                     )
     except httpx.HTTPStatusError as exc:
+        _mark("unavailable", f"Provider returned HTTP {exc.response.status_code}.")
         raise HTTPException(
             502,
             f"The model provider returned HTTP {exc.response.status_code}. Check provider configuration and credit balance.",
         )
+    except httpx.ConnectTimeout:
+        message = "The provider connection timed out before a response was received. Check the network route to the configured API."
+        _mark("unavailable", message)
+        raise ProviderUnavailable(504, message)
+    except httpx.TimeoutException:
+        message = "The provider response timed out. Saved decision evidence is still available."
+        _mark("unavailable", message)
+        raise ProviderUnavailable(504, message)
     except httpx.RequestError:
-        raise HTTPException(
+        _mark(
+            "unavailable",
+            "The model provider could not be reached. Check the network connection to the API.",
+        )
+        raise ProviderUnavailable(
             502, "The model provider could not be reached. Please try again."
         )
     except (ValueError, KeyError, TypeError, IndexError):

@@ -51,7 +51,7 @@ def demo():
     def relation(subject, scope, kind, quote):
         return dict(target_subject=subject, target_scope=scope, type=kind, quote=quote)
 
-    q = "Mina Torres proposed offline mode for v1 so field researchers could capture notes without an internet connection. Scope approval is still pending."
+    q = "John Lorenzo proposed offline mode for v1 so field researchers could capture notes without an internet connection. Scope approval is still pending."
     add(
         1,
         "Project kickoff",
@@ -64,12 +64,12 @@ def demo():
                 "proposed",
                 "Offline capture proposed",
                 q,
-                people=[person("Mina Torres", "proposed_by", q)],
+                people=[person("John Lorenzo", "proposed_by", q)],
                 topics=["Field research", "Offline access"],
             )
         ],
     )
-    q = "Adrian Cruz approved offline mode for v1, including local note capture and subsequent synchronization."
+    q = "Raymund Zyron approved offline mode for v1, including local note capture and subsequent synchronization."
     add(
         2,
         "Scope approval",
@@ -82,12 +82,12 @@ def demo():
                 "approved",
                 "Offline mode approved for v1",
                 q,
-                people=[person("Adrian Cruz", "approved_by", q)],
+                people=[person("Raymund Zyron", "approved_by", q)],
                 topics=["Offline access"],
             )
         ],
     )
-    q = "Priya Shah reported that offline synchronization remained unreliable: conflicting edits caused data loss in two test scenarios. Resolving the synchronization issues would add three weeks and threaten the May 1 v1 delivery deadline."
+    q = "Jhon Paul reported that offline synchronization remained unreliable: conflicting edits caused data loss in two test scenarios. Resolving the synchronization issues would add three weeks and threaten the May 1 v1 delivery deadline."
     add(
         3,
         "Technical review",
@@ -100,7 +100,7 @@ def demo():
                 "unresolved",
                 "Synchronization reliability risk identified",
                 q,
-                people=[person("Priya Shah", "mentioned", q)],
+                people=[person("Jhon Paul", "mentioned", q)],
                 constraints=[
                     detail("May 1 delivery deadline", q),
                     detail("Synchronization reliability", q),
@@ -110,7 +110,7 @@ def demo():
             )
         ],
     )
-    q = "Adrian Cruz approved removing offline mode from v1 because of synchronization reliability and delivery timeline risks. This explicitly supersedes the February 3 v1 approval. Offline work is postponed beyond v1."
+    q = "Raymund Zyron approved removing offline mode from v1 because of synchronization reliability and delivery timeline risks. This explicitly supersedes the February 3 v1 approval. Offline work is postponed beyond v1."
     add(
         4,
         "Decision review",
@@ -124,7 +124,7 @@ def demo():
                 "Offline mode postponed beyond v1",
                 q,
                 supersedes_previous=True,
-                people=[person("Adrian Cruz", "approved_by", q)],
+                people=[person("Raymund Zyron", "approved_by", q)],
                 constraints=[
                     detail("Synchronization reliability", q),
                     detail("Delivery timeline", q),
@@ -133,8 +133,8 @@ def demo():
             )
         ],
     )
-    q1 = "Mina Torres proposed reconsidering offline mode for v2. This is not an approval to build or launch it; the v1 removal remains in effect. Offline mode v2 depends on the synchronization prototype."
-    q2 = "Priya Shah proposed a synchronization prototype for v2 to validate conflict resolution before offline mode can be approved. Priya Shah will evaluate the prototype and publish a reliability report."
+    q1 = "John Lorenzo proposed reconsidering offline mode for v2. This is not an approval to build or launch it; the v1 removal remains in effect. Offline mode v2 depends on the synchronization prototype."
+    q2 = "Jhon Paul proposed a synchronization prototype for v2 to validate conflict resolution before offline mode can be approved. Jhon Paul will evaluate the prototype and publish a reliability report."
     add(
         5,
         "Version two roadmap",
@@ -147,7 +147,7 @@ def demo():
                 "proposed",
                 "Offline mode reconsidered for v2",
                 q1,
-                people=[person("Mina Torres", "proposed_by", q1)],
+                people=[person("John Lorenzo", "proposed_by", q1)],
                 relations=[
                     relation("Synchronization prototype", "v2", "depends_on", q1),
                     relation("Offline mode", "v1", "reconsiders", q1),
@@ -160,7 +160,7 @@ def demo():
                 "proposed",
                 "Reliability prototype proposed",
                 q2,
-                people=[person("Priya Shah", "proposed_by", q2)],
+                people=[person("Jhon Paul", "proposed_by", q2)],
                 outcomes=[
                     detail("Evaluate prototype and publish reliability report", q2)
                 ],
@@ -168,10 +168,10 @@ def demo():
             ),
         ],
     )
-    q1 = "Adrian Cruz approved the synchronization prototype for v2. Priya Shah is assigned to evaluate conflict resolution; approving the prototype does not approve offline mode v2."
-    q2 = "Adrian Cruz approved the v1 launch for May 1. The May 1 delivery deadline remains fixed."
-    q3 = "Nora Reyes approved the online field pilot for v1. The online field pilot depends on the v1 launch. Nora Reyes will schedule the online pilot after launch."
-    q4 = "Alex Chen proposed an offline field pilot for v2. The offline field pilot depends on offline mode v2, which is not approved. No launch date is established for the offline pilot."
+    q1 = "Raymund Zyron approved the synchronization prototype for v2. Jhon Paul is assigned to evaluate conflict resolution; approving the prototype does not approve offline mode v2."
+    q2 = "Raymund Zyron approved the v1 launch for May 1. The May 1 delivery deadline remains fixed."
+    q3 = "Raymund Zyron approved the online field pilot for v1. The online field pilot depends on the v1 launch. Raymund Zyron will schedule the online pilot after launch."
+    q4 = "John Lorenzo proposed an offline field pilot for v2. The offline field pilot depends on offline mode v2, which is not approved. No launch date is established for the offline pilot."
     add(
         6,
         "Delivery alignment",
@@ -185,8 +185,8 @@ def demo():
                 "Synchronization prototype approved",
                 q1,
                 people=[
-                    person("Adrian Cruz", "approved_by", q1),
-                    person("Priya Shah", "assigned_to", q1),
+                    person("Raymund Zyron", "approved_by", q1),
+                    person("Jhon Paul", "assigned_to", q1),
                 ],
                 topics=["Synchronization"],
             ),
@@ -197,7 +197,7 @@ def demo():
                     "approved",
                     "May 1 launch approved",
                     q2,
-                    people=[person("Adrian Cruz", "approved_by", q2)],
+                    people=[person("Raymund Zyron", "approved_by", q2)],
                     constraints=[detail("May 1 delivery deadline", q2)],
                     topics=["Release planning"],
                 ),
@@ -210,7 +210,7 @@ def demo():
                     "approved",
                     "Online pilot approved after launch",
                     q3,
-                    people=[person("Nora Reyes", "approved_by", q3)],
+                    people=[person("Raymund Zyron", "approved_by", q3)],
                     outcomes=[detail("Schedule online pilot after launch", q3)],
                     relations=[relation("Product launch", "v1", "depends_on", q3)],
                     topics=["Field research"],
@@ -223,7 +223,7 @@ def demo():
                 "proposed",
                 "Offline pilot proposed",
                 q4,
-                people=[person("Alex Chen", "proposed_by", q4)],
+                people=[person("John Lorenzo", "proposed_by", q4)],
                 relations=[relation("Offline mode", "v2", "depends_on", q4)],
                 topics=["Field research"],
             ),

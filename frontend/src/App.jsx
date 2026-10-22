@@ -16,10 +16,10 @@ import {
   ChevronRight,
   Copy,
   Download,
+  Eye,
   FileText,
   GitBranch,
   HelpCircle,
-  Layers,
   Link2,
   Loader2,
   Menu,
@@ -43,6 +43,9 @@ import { kindIcons } from "./graphTypes";
 import { Status } from "./Status";
 const ContextGraph = lazy(() => import("./ContextGraph"));
 import Inspector from "./Inspector";
+import SourceViewer from "./SourceViewer";
+import EvidencePreview from "./EvidencePreview";
+import { sourceContext } from "./graphContext";
 import { api, post, formatDate, download } from "./api";
 
 const EMPTY = {
@@ -69,7 +72,8 @@ const VIEWS = {
     "Decision timeline",
     "Follow the documented history, one event at a time.",
   ],
-  sources: ["Project sources", "Bring the conversations. Keep the context."],
+  sources: ["Reference documents", "Keep requirements, policies, and project context in one place."],
+  conversations: ["Conversations", "Capture the discussions behind your decisions."],
   context: [
     "People & context",
     "Explore the people, constraints, and topics behind your decisions.",
@@ -79,11 +83,12 @@ const NAV = [
   ["graph", Network, "Context graph"],
   ["decisions", GitBranch, "Decisions"],
   ["timeline", Clock, "Timeline"],
-  ["sources", FileText, "Sources"],
+  ["conversations", MessageSquare, "Conversations"],
+  ["sources", FileText, "Reference documents"],
   ["context", UserRound, "People & context"],
 ];
 
-function Dialog({ label, onClose, children, wide = false }) {
+function Dialog({ label, onClose, children, wide = false, viewer = false }) {
   const ref = useRef(null);
   useEffect(() => {
     const previous = document.activeElement;
@@ -114,7 +119,7 @@ function Dialog({ label, onClose, children, wide = false }) {
       document.body.style.overflow = overflow;
       previous?.focus();
     };
-  }, [onClose]);
+  }, [onClose, label]);
   return (
     <motion.div
       className="dialog-backdrop"
@@ -127,7 +132,7 @@ function Dialog({ label, onClose, children, wide = false }) {
     >
       <motion.section
         ref={ref}
-        className={`dialog ${wide ? "wide" : ""}`}
+        className={`dialog ${wide ? "wide" : ""} ${viewer ? "source-viewer-dialog" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label={label}
@@ -171,6 +176,7 @@ export default function App() {
     [answer, setAnswer] = useState(null),
     [asking, setAsking] = useState(false),
     [processing, setProcessing] = useState("");
+  const [checkingProvider, setCheckingProvider] = useState(false);
   const [error, setError] = useState(""),
     [toast, setToast] = useState(""),
     [menu, setMenu] = useState(false),
@@ -181,6 +187,7 @@ export default function App() {
     [importDate, setImportDate] = useState(""),
     [importText, setImportText] = useState("");
   const fileInput = useRef(null),
+    uploadType = useRef("reference"),
     askInput = useRef(null);
   const reduced = useReducedMotion();
   const closeDialog = useCallback(() => setDialog(null), []);
@@ -218,6 +225,9 @@ export default function App() {
         if (active) {
           adopt(g);
           setHealth(h);
+          if (h.configured && h.provider === "deepseek") {
+            post("/provider/check").then((value) => { if (active) setHealth(value); }).catch(() => {});
+          }
         }
       })
       .catch((e) => {
@@ -229,6 +239,15 @@ export default function App() {
     return () => {
       active = false;
     };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    const reconnect = () => api("/health").then((value) => {
+      if (value.configured && value.provider === "deepseek") return post("/provider/check");
+      return value;
+    }).then((value) => { if (active) setHealth(value); }).catch(() => {});
+    window.addEventListener("online", reconnect);
+    return () => { active = false; window.removeEventListener("online", reconnect); };
   }, []);
   useEffect(() => {
     if (toast) {
@@ -310,9 +329,16 @@ export default function App() {
     );
   const isDemo =
     graph.sources.length > 0 && graph.sources.every((d) => d.synthetic);
+  const workspaceName = graph.sources.find((s) => s.workspace_name)?.workspace_name || (isDemo ? "Project Atlas" : "My workspace");
+  const suggestedQuestions = graph.sources.flatMap((s) => s.suggested_questions || []);
   const pending = graph.sources.filter(
     (s) => s.extraction_state !== "extracted",
   );
+  const isConversations = view === "conversations";
+  const visibleSources = graph.sources.filter((s) =>
+    isConversations ? s.source_type === "conversation" : s.source_type !== "conversation",
+  );
+  const visiblePending = visibleSources.filter((s) => s.extraction_state !== "extracted");
   const busy = !!processing;
   const selectNode = useCallback(
     (id) => {
@@ -341,6 +367,7 @@ export default function App() {
   }
   function navigate(next) {
     setView(next);
+    window.scrollTo(0, 0);
     setMenu(false);
     setQuery("");
     setFilter("");
@@ -358,12 +385,16 @@ export default function App() {
       setReceiptError(e.message);
     }
   }
-  async function extract(ids) {
+  function openSource(source, page = 1, quote = "") {
+    setDialog({ type: "viewer", source, page, quote });
+  }
+  async function extract(ids, force = false) {
     setProcessing("Extracting decisions and connecting the evidence…");
     setError("");
     try {
       const value = await post("/workspace/extract", {
         document_ids: ids || [],
+        force,
       });
       adopt(value.workspace);
       const failed = value.results.filter((r) => r.state === "error");
@@ -371,20 +402,26 @@ export default function App() {
         setError(
           `${failed.length} source(s) could not be extracted. ${failed[0].message}`,
         );
-      else setToast("Decision traces saved. Your graph is up to date.");
+      else setToast(value.results.some((r) => r.state === "indexed") ? "Reference indexed. It will be used to ground conversation decisions." : "Decision traces saved. Your graph is up to date.");
       setAnswer(null);
     } catch (e) {
       setError(e.message);
     } finally {
       setProcessing("");
+      api("/health").then(setHealth).catch(() => {});
     }
   }
-  async function upload(files) {
+  function chooseFiles(type = "reference") {
+    uploadType.current = type;
+    fileInput.current?.click();
+  }
+  async function upload(files, sourceType = "reference") {
     if (!files?.length || busy) return;
     setProcessing("Reading source documents…");
     setError("");
     const before = new Set(graph.sources.map((s) => s.document_id));
     const form = new FormData();
+    form.append("source_type", sourceType);
     Array.from(files).forEach((f) => form.append("files", f));
     try {
       const docs = await api("/documents", { method: "POST", body: form });
@@ -394,7 +431,7 @@ export default function App() {
         .map((d) => d.document_id);
       if (added.length) {
         await extract(added);
-        setView("sources");
+        setView(sourceType === "conversation" ? "conversations" : "sources");
       } else {
         setToast("These sources are already in the workspace.");
         setProcessing("");
@@ -459,7 +496,19 @@ export default function App() {
       setError(e.message);
     } finally {
       setAsking(false);
+      api("/health").then(setHealth).catch(() => {});
     }
+  }
+  async function checkProvider() {
+    if (checkingProvider) return;
+    setCheckingProvider(true);
+    try {
+      const result = await post("/provider/check");
+      setHealth(result);
+      setToast(result.connection_status === "connected" ? "DeepSeek connected. Live AI is available." : result.connection_message);
+    } catch (e) {
+      setError(e.message);
+    } finally { setCheckingProvider(false); }
   }
   async function exportGraph() {
     try {
@@ -499,7 +548,7 @@ export default function App() {
       { type: "text/markdown" },
     );
     setDialog(null);
-    upload([file]);
+    upload([file], "conversation");
     setImportText("");
     setImportTitle("");
     setImportDate("");
@@ -591,9 +640,7 @@ export default function App() {
             navigate("graph");
           }}
         >
-          <span className="brand-mark">
-            <Layers size={21} />
-          </span>
+          <img className="brand-mark" src="/brand/ragret-logo.png" alt="" width="36" height="36" />
           RAGret<span className="brand-period">.</span>
         </a>
         <button
@@ -602,7 +649,7 @@ export default function App() {
         >
           <span className="workspace-avatar">A</span>
           <span>
-            <strong>{isDemo ? "Project Atlas" : "My workspace"}</strong>
+            <strong>{workspaceName}</strong>
             <small>{isDemo ? "Synthetic example" : "Local project"}</small>
           </span>
           <ChevronDown size={14} />
@@ -618,7 +665,8 @@ export default function App() {
               <Icon size={17} />
               <span>{label}</span>
               {key === "decisions" && <small>{graph.stats.decisions}</small>}
-              {key === "sources" && <small>{graph.stats.sources}</small>}
+              {key === "sources" && <small>{graph.sources.filter((s) => s.source_type !== "conversation").length}</small>}
+              {key === "conversations" && <small>{graph.sources.filter((s) => s.source_type === "conversation").length}</small>}
             </button>
           ))}
         </nav>
@@ -704,14 +752,19 @@ export default function App() {
             <strong>{VIEWS[view][0]}</strong>
           </div>
           <div className="topbar-actions">
-            <span
-              className={`provider-status ${health?.configured ? "ready" : ""}`}
+            <button
+              className={`provider-status ${health?.connection_status === "connected" ? "ready" : health?.connection_status === "unavailable" ? "unavailable" : ""}`}
+              title={health?.connection_message}
+              aria-label="Check model provider connection"
+              onClick={checkProvider}
+              disabled={checkingProvider || !health?.configured || health?.provider !== "deepseek"}
             >
               <i />
               {health?.configured
-                ? `${health.provider === "alma" ? "Gemma" : "DeepSeek"} ready`
+                ? `${health.provider === "alma" ? "Gemma" : "DeepSeek"} ${health.connection_status === "connected" ? "connected" : health.connection_status === "unavailable" ? "unavailable" : "configured"}`
                 : "Provider not configured"}
-            </span>
+              <RefreshCw size={12} className={checkingProvider ? "spin" : ""} />
+            </button>
             <button
               className="secondary-button export-button"
               onClick={exportGraph}
@@ -722,11 +775,11 @@ export default function App() {
             </button>
             <button
               className="primary-button"
-              onClick={() => fileInput.current?.click()}
+              onClick={() => chooseFiles(isConversations ? "conversation" : "reference")}
               disabled={busy}
             >
               <Plus size={15} />
-              Add sources
+              {isConversations ? "Upload conversation" : "Add documents"}
             </button>
           </div>
         </header>
@@ -742,7 +795,7 @@ export default function App() {
               onClick={() => setDialog({ type: "workspace" })}
             >
               <span className="workspace-avatar">A</span>
-              {isDemo ? "Project Atlas" : "My workspace"}
+              {workspaceName}
               {isDemo && <span className="sample-tag">SYNTHETIC</span>}
               <ChevronDown size={13} />
             </button>
@@ -817,7 +870,7 @@ export default function App() {
                       <input
                         ref={askInput}
                         aria-label="Ask the decision graph"
-                        placeholder="Ask your project. Why did we postpone offline mode?"
+                        placeholder="Ask your project. What changed, and why?"
                         value={question}
                         onChange={(e) => setQuestion(e.target.value)}
                         maxLength={1500}
@@ -838,10 +891,10 @@ export default function App() {
                     </form>
                     <div className="suggested-questions">
                       <span>Try</span>
-                      {[
+                      {(suggestedQuestions.length ? suggestedQuestions.slice(0, 3) : isDemo ? [
                         "Why was offline mode postponed?",
                         "What depends on the synchronization prototype?",
-                      ].map((q) => (
+                      ] : ["What decisions changed?", "Which decisions have dependencies?"]).map((q) => (
                         <button
                           key={q}
                           onClick={() => ask(q)}
@@ -863,8 +916,8 @@ export default function App() {
                       >
                         <div className="answer-heading">
                           <span>
-                            <Sparkles size={14} />
-                            {answer.engine === "graph-retrieval"
+                            {answer.engine === "saved-graph" ? <FileText size={14} /> : <Sparkles size={14} />}
+                            {answer.engine === "saved-graph" ? "Saved evidence · AI unavailable" : answer.engine === "graph-retrieval"
                               ? "Evidence gap"
                               : "Answer from your decision graph"}
                           </span>
@@ -1038,26 +1091,14 @@ export default function App() {
                               cluster={cluster}
                               onSelect={selectNode}
                               onReceipt={receipt}
+                              onOpenSource={openSource}
                             />
                           </Suspense>
                         </div>
                         <div className="graph-legend">
-                          {[
-                            "source",
-                            "decision",
-                            "person",
-                            "constraint",
-                            "action",
-                          ].map((kind) => (
-                            <span key={kind}>
-                              <i className={kind} />
-                              {kind === "constraint"
-                                ? "Constraint / risk"
-                                : kind === "action"
-                                  ? "Documented action"
-                                  : kind}
-                            </span>
-                          ))}
+                          <span><i className="edge-key" />Conversation evidence</span>
+                          <span><i className="edge-key reference" />Reference context</span>
+                          <span><i className="edge-key dependency" />Decision dependency</span>
                           <span className="legend-note">
                             <ShieldCheck size={12} />
                             Connections carry source receipts
@@ -1236,64 +1277,77 @@ export default function App() {
                   )}
                 </>
               )}
-              {view === "sources" && (
+              {(view === "sources" || view === "conversations") && (
                 <>
+                  {isConversations && (
+                    <section className="conversation-guide" aria-label="Conversation import guide">
+                      <span className="conversation-guide-icon"><MessageSquare size={20} /></span>
+                      <div>
+                        <strong>The discussion here. The background alongside it.</strong>
+                        <p>Keep names, dates, and replies in your transcript so decisions can be traced back to what was said.</p>
+                      </div>
+                      <button className="text-button" onClick={() => navigate("sources")}>
+                        Add reference documents <ArrowUpRight size={14} />
+                      </button>
+                    </section>
+                  )}
                   <section
                     className="source-dropzone"
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => {
                       e.preventDefault();
-                      upload(e.dataTransfer.files);
+                      upload(e.dataTransfer.files, isConversations ? "conversation" : "reference");
                     }}
                   >
                     <span className="upload-symbol">
                       <Upload size={24} />
                     </span>
                     <div>
-                      <h2>The conversation is the starting point.</h2>
+                      <h2>{isConversations ? "Every decision starts with a conversation." : "Give your decisions the full context."}</h2>
                       <p>
                         Drop PDFs, Markdown, or TXT files here. Up to 8 sources
                         · 10 MB each.
                       </p>
                       <small>
-                        Text PDFs only. Include a date in the source when
-                        possible.
+                        {isConversations
+                          ? "Upload chat exports, meeting transcripts, or email threads. Keep speaker names and timestamps."
+                          : "Upload requirements, policies, budgets, or technical specs. Include the version and effective date."}
                       </small>
                     </div>
                     <div className="upload-actions">
                       <button
                         className="primary-button"
                         disabled={busy}
-                        onClick={() => fileInput.current?.click()}
+                        onClick={() => chooseFiles(isConversations ? "conversation" : "reference")}
                       >
                         <Plus size={15} />
-                        Upload documents
+                        {isConversations ? "Upload conversation" : "Upload documents"}
                       </button>
-                      <button
+                      {isConversations && <button
                         className="secondary-button"
                         disabled={busy}
                         onClick={() => setDialog({ type: "import" })}
                       >
                         <MessageSquare size={14} />
                         Paste conversation
-                      </button>
+                      </button>}
                     </div>
                   </section>
                   <div className="sources-toolbar">
                     <h2>
-                      Source library <span>{graph.sources.length}</span>
+                      {isConversations ? "Conversation library" : "Reference library"} <span>{visibleSources.length}</span>
                     </h2>
                     <div>
-                      {pending.length > 0 && (
+                      {visiblePending.length > 0 && (
                         <button
                           className="secondary-button"
                           disabled={busy}
                           onClick={() =>
-                            extract(pending.map((s) => s.document_id))
+                            extract(visiblePending.map((s) => s.document_id))
                           }
                         >
                           <Sparkles size={14} />
-                          Extract pending ({pending.length})
+                          Extract pending ({visiblePending.length})
                         </button>
                       )}
                       <button
@@ -1307,7 +1361,7 @@ export default function App() {
                     </div>
                   </div>
                   <div className="source-library">
-                    {graph.sources.map((d) => {
+                    {visibleSources.map((d) => {
                       const linked = graph.edges.filter(
                         (e) =>
                           e.source === d.document_id && e.kind === "supports",
@@ -1319,12 +1373,7 @@ export default function App() {
                           </span>
                           <div className="source-row-title">
                             <button
-                              onClick={() =>
-                                receipt({
-                                  chunk_id: d.first_chunk_id,
-                                  filename: d.filename,
-                                })
-                              }
+                              onClick={() => openSource(d)}
                             >
                               {d.title}
                             </button>
@@ -1350,7 +1399,7 @@ export default function App() {
                               ) : (
                                 <Clock size={12} />
                               )}{" "}
-                              {d.extraction_state === "extracted"
+                              {d.engine === "reference-index" ? "Indexed" : d.extraction_state === "extracted"
                                 ? "Extracted"
                                 : d.extraction_state === "error"
                                   ? "Needs attention"
@@ -1360,20 +1409,29 @@ export default function App() {
                               {linked} decision{linked !== 1 ? "s" : ""} ·{" "}
                               {d.engine === "curated-synthetic"
                                 ? "Curated example"
+                                : d.engine === "reference-index" ? "Reference indexed"
                                 : d.engine || "Not processed"}
                             </small>
                           </div>
                           <div className="source-actions">
+                            <button className="secondary-button" onClick={() => openSource(d)} aria-label={`View ${d.title}`}>
+                              <Eye size={14} /> View
+                            </button>
+                            {d.source_type !== "conversation" && d.has_original && (
+                              <a className="secondary-button source-download" href={`/api/documents/${encodeURIComponent(d.document_id)}/file?download=true`} download>
+                                <Download size={14} /> {d.filename.toLowerCase().endsWith(".pdf") ? "Download PDF" : "Download file"}
+                              </a>
+                            )}
                             <button
                               className="icon-button"
-                              aria-label={`Extract ${d.title}`}
+                              aria-label={`${d.source_type === "conversation" && d.extraction_state === "extracted" ? "Re-extract" : "Extract"} ${d.title}`}
                               title={
                                 d.extraction_state === "extracted"
-                                  ? "Source already processed; unchanged content is reused"
+                                  ? d.source_type === "conversation" ? "Re-extract with live AI using current reference documents" : "Reference already indexed"
                                   : "Extract decisions"
                               }
                               disabled={busy}
-                              onClick={() => extract([d.document_id])}
+                              onClick={() => extract([d.document_id], d.source_type === "conversation" && d.extraction_state === "extracted")}
                             >
                               <RefreshCw size={15} />
                             </button>
@@ -1386,16 +1444,18 @@ export default function App() {
                               <Trash2 size={15} />
                             </button>
                           </div>
+                          <EvidencePreview context={sourceContext(graph, d.document_id, root)} source={d} onOpen={openSource} onReceipt={receipt} />
                         </article>
                       );
                     })}
-                    {!graph.sources.length && (
+                    {!visibleSources.length && (
                       <div className="quiet-empty">
                         <FileText size={28} />
-                        <h3>A fresh page.</h3>
+                        <h3>{isConversations ? "Your conversations belong here." : "Your reference library starts here."}</h3>
                         <p>
-                          Upload a record or paste a conversation to start your
-                          graph.
+                          {isConversations
+                            ? "Upload a conversation document or paste a thread to extract decisions and their evidence."
+                            : "Add project documents to keep supporting context alongside your decisions."}
                         </p>
                       </div>
                     )}
@@ -1490,10 +1550,10 @@ export default function App() {
         className="visually-hidden"
         ref={fileInput}
         type="file"
-        aria-label="Upload project sources"
+        aria-label={isConversations ? "Upload conversation documents" : "Upload reference documents"}
         multiple
         accept=".pdf,.md,.txt"
-        onChange={(e) => upload(e.target.files)}
+        onChange={(e) => upload(e.target.files, uploadType.current)}
       />
       <AnimatePresence>
         {toast && (
@@ -1513,7 +1573,9 @@ export default function App() {
         {dialog && (
           <Dialog
             label={
-              dialog.type === "receipt"
+              dialog.type === "viewer"
+                ? dialog.source.source_type === "conversation" ? "Conversation viewer" : "Document viewer"
+                : dialog.type === "receipt"
                 ? "Source evidence"
                 : dialog.type === "import"
                   ? "Import a conversation"
@@ -1522,8 +1584,10 @@ export default function App() {
                     : "How RAGret works"
             }
             wide={dialog.type === "receipt"}
+            viewer={dialog.type === "viewer"}
             onClose={closeDialog}
           >
+            {dialog.type === "viewer" && <SourceViewer key={dialog.source.document_id} source={dialog.source} initialPage={dialog.page} initialQuote={dialog.quote} />}
             {dialog.type === "receipt" && (
               <div className="evidence-dialog">
                 <div className="evidence-document-heading">
@@ -1578,6 +1642,9 @@ export default function App() {
                     claim came from. Review whether the passage supports the
                     interpretation.
                   </p>
+                  {sourceText && <button className="secondary-button" onClick={() => openSource(sourceText, sourceText.page)}>
+                    <Eye size={14} /> Open full source
+                  </button>}
                   <button
                     className="secondary-button"
                     onClick={copyReceipt}
@@ -1591,9 +1658,7 @@ export default function App() {
             )}
             {dialog.type === "workspace" && (
               <div className="workspace-dialog">
-                <div className="dialog-symbol">
-                  <Layers size={25} />
-                </div>
+                <img className="dialog-symbol brand-image" src="/brand/ragret-logo.png" alt="RAGret" width="48" height="48" />
                 <h2>Start with the right context.</h2>
                 <p>
                   Use your own records or explore a fictional project with
@@ -1671,7 +1736,7 @@ export default function App() {
                     rows={9}
                     value={importText}
                     onChange={(e) => setImportText(e.target.value)}
-                    placeholder="Mina: I propose…&#10;Adrian: Approved, provided that…"
+                    placeholder="John Lorenzo: I propose…&#10;Raymund Zyron: Approved, provided that…"
                   />
                 </label>
                 <p className="muted-note">

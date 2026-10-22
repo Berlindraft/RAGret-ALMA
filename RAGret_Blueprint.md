@@ -1,5 +1,7 @@
 # RAGret
 
+> Original planning document. For the current implementation, setup, supported integrations, and limitations, see [README.md](README.md) and [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+
 > **No more regrets. Just receipts.**
 
 **Project:** Evidence-backed project decision investigator  
