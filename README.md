@@ -1,5 +1,9 @@
 ﻿# RAGret
 
+<p align="center">
+  <img src="frontend/public/brand/ragret-logo.png" alt="RAGret logo" width="160" />
+</p>
+
 **No more regrets. Just receipts.**
 
 A local decision-memory app. Upload project records or conversation exports, extract persistent decision traces, and explore their people, constraints, evidence, and explicit dependencies in an interactive context graph.
