@@ -1,0 +1,37 @@
+import {
+  FileText,
+  GitBranch,
+  UserRound,
+  CircleAlert,
+  Tag,
+  Folder,
+  CheckCheck,
+  Lightbulb,
+} from "lucide-react";
+export const kindIcons = {
+  source: FileText,
+  decision: GitBranch,
+  person: UserRound,
+  constraint: CircleAlert,
+  topic: Tag,
+  cluster: Folder,
+  action: CheckCheck,
+  fact: Lightbulb,
+};
+export const relationLabels = {
+  supports: "supports",
+  proposed_by: "proposed by",
+  approved_by: "approved by",
+  rejected_by: "rejected by",
+  mentioned: "mentions",
+  assigned_to: "assigned to",
+  constrained_by: "constrained by",
+  has_fact: "documented fact",
+  results_in: "results in",
+  has_topic: "has topic",
+  in_cluster: "grouped in",
+  depends_on: "depends on",
+  reconsiders: "reconsiders",
+  supersedes: "supersedes",
+  contradicts: "contradicts",
+};
