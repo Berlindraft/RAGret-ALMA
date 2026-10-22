@@ -176,7 +176,6 @@ export default function App() {
     [answer, setAnswer] = useState(null),
     [asking, setAsking] = useState(false),
     [processing, setProcessing] = useState("");
-  const [checkingProvider, setCheckingProvider] = useState(false);
   const [error, setError] = useState(""),
     [toast, setToast] = useState(""),
     [menu, setMenu] = useState(false),
@@ -499,17 +498,6 @@ export default function App() {
       api("/health").then(setHealth).catch(() => {});
     }
   }
-  async function checkProvider() {
-    if (checkingProvider) return;
-    setCheckingProvider(true);
-    try {
-      const result = await post("/provider/check");
-      setHealth(result);
-      setToast(result.connection_status === "connected" ? "DeepSeek connected. Live AI is available." : result.connection_message);
-    } catch (e) {
-      setError(e.message);
-    } finally { setCheckingProvider(false); }
-  }
   async function exportGraph() {
     try {
       const value = await api("/workspace/export");
@@ -715,7 +703,7 @@ export default function App() {
               Local workspace
               <small>
                 Source excerpts sent to{" "}
-                {health?.provider === "alma" ? "ALMA" : "DeepSeek"} for AI
+                {health?.provider === "alma" ? "ALMA" : "the configured AI provider"} for AI
                 processing.
               </small>
             </span>
@@ -752,19 +740,6 @@ export default function App() {
             <strong>{VIEWS[view][0]}</strong>
           </div>
           <div className="topbar-actions">
-            <button
-              className={`provider-status ${health?.connection_status === "connected" ? "ready" : health?.connection_status === "unavailable" ? "unavailable" : ""}`}
-              title={health?.connection_message}
-              aria-label="Check model provider connection"
-              onClick={checkProvider}
-              disabled={checkingProvider || !health?.configured || health?.provider !== "deepseek"}
-            >
-              <i />
-              {health?.configured
-                ? `${health.provider === "alma" ? "Gemma" : "DeepSeek"} ${health.connection_status === "connected" ? "connected" : health.connection_status === "unavailable" ? "unavailable" : "configured"}`
-                : "Provider not configured"}
-              <RefreshCw size={12} className={checkingProvider ? "spin" : ""} />
-            </button>
             <button
               className="secondary-button export-button"
               onClick={exportGraph}
@@ -1410,7 +1385,7 @@ export default function App() {
                               {d.engine === "curated-synthetic"
                                 ? "Curated example"
                                 : d.engine === "reference-index" ? "Reference indexed"
-                                : d.engine || "Not processed"}
+                                : d.engine ? "AI extraction" : "Not processed"}
                             </small>
                           </div>
                           <div className="source-actions">
@@ -1741,7 +1716,7 @@ export default function App() {
                 </label>
                 <p className="muted-note">
                   Text is sent to{" "}
-                  {health?.provider === "alma" ? "ALMA" : "DeepSeek"} for
+                  {health?.provider === "alma" ? "ALMA" : "the configured AI provider"} for
                   decision extraction. Unknown dates and unnamed people remain
                   unknown.
                 </p>
