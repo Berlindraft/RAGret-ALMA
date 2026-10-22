@@ -1,7 +1,7 @@
 # RAGret
 
 <p align="center">
-  <img src="frontend/public/brand/ragret-logo.png" alt="RAGret logo" width="160" />
+  <img src="https://raw.githubusercontent.com/Berlindraft/RAGret-ALMA/main/frontend/public/brand/ragret-logo.png" alt="RAGret logo" width="160" />
 </p>
 
 **No more regrets. Just receipts.** Turn conversations and reference documents into a traceable history of what your team decided, what changed, and why.
@@ -42,7 +42,7 @@ Download copies and presentation screenshots:
 - [Narrated setup and walkthrough - 3 minutes 50 seconds](https://raw.githubusercontent.com/Berlindraft/RAGret-ALMA/main/RAGret-Setup-and-Demo.mp4)
 - [Project screenshots](https://github.com/Berlindraft/RAGret-ALMA/raw/refs/heads/main/RAGret-Screenshots.zip)
 
-For a local walkthrough, see the [Northstar demonstration guide](examples/README.md). It pairs a real 129-page NIST reference with a clearly fictional 64-message conversation, eight curated decisions, and 17 observations.
+For a local walkthrough, see the [Northstar demonstration guide](https://github.com/Berlindraft/RAGret-ALMA/blob/main/examples/README.md). It pairs a real 129-page NIST reference with a clearly fictional 64-message conversation, eight curated decisions, and 17 observations.
 
 ## Slides
 
@@ -74,7 +74,7 @@ The current development provider is DeepSeek. An ALMA adapter supports the organ
 
 RAGret adds a persistent decision layer to basic document RAG: stable decision identities, chronological observations, state-resolution rules, explicit dependencies, and source receipts. The model interprets text; deterministic backend checks validate the supplied quotations before records are saved. Adding a reference does not silently rewrite earlier decisions: re-extract an existing conversation to analyze it with updated references.
 
-Read the [technical overview](TECHNICAL_OVERVIEW.md) for the architecture, algorithms, and source-code map, or the [implementation guide](docs/IMPLEMENTATION.md) for UI behavior.
+Read the [technical overview](https://github.com/Berlindraft/RAGret-ALMA/blob/main/TECHNICAL_OVERVIEW.md) for the architecture, algorithms, and source-code map, or the [implementation guide](https://github.com/Berlindraft/RAGret-ALMA/blob/main/docs/IMPLEMENTATION.md) for UI behavior.
 
 ## How to run it
 
@@ -124,16 +124,16 @@ The current MVP is a local, single-user application. It has no paying customers 
 
 ## Further documentation
 
-- [Setup and troubleshooting](SETUP.md)
-- [Simple technical overview and architecture](TECHNICAL_OVERVIEW.md)
-- [Current implementation](docs/IMPLEMENTATION.md)
-- [Backend guide](backend/README.md) and [frontend guide](frontend/README.md)
-- [Hackathon demo and source provenance](examples/README.md)
-- [Original project blueprint](RAGret_Blueprint.md)
+- [Setup and troubleshooting](https://github.com/Berlindraft/RAGret-ALMA/blob/main/SETUP.md)
+- [Simple technical overview and architecture](https://github.com/Berlindraft/RAGret-ALMA/blob/main/TECHNICAL_OVERVIEW.md)
+- [Current implementation](https://github.com/Berlindraft/RAGret-ALMA/blob/main/docs/IMPLEMENTATION.md)
+- [Backend guide](https://github.com/Berlindraft/RAGret-ALMA/blob/main/backend/README.md) and [frontend guide](https://github.com/Berlindraft/RAGret-ALMA/blob/main/frontend/README.md)
+- [Hackathon demo and source provenance](https://github.com/Berlindraft/RAGret-ALMA/blob/main/examples/README.md)
+- [Original project blueprint](https://github.com/Berlindraft/RAGret-ALMA/blob/main/RAGret_Blueprint.md)
 
 ## Synthetic example
 
-For the larger hackathon demonstration, follow [examples/README.md](examples/README.md). Northstar Portal pairs an unchanged 129-page public NIST reference with a fictional 64-message team conversation, eight curated decisions, and 17 observations. Loading it explicitly replaces the active workspace after making a local backup; a fresh checkout does not automatically load this dataset.
+For the larger hackathon demonstration, follow [examples/README.md](https://github.com/Berlindraft/RAGret-ALMA/blob/main/examples/README.md). Northstar Portal pairs an unchanged 129-page public NIST reference with a fictional 64-message team conversation, eight curated decisions, and 17 observations. Loading it explicitly replaces the active workspace after making a local backup; a fresh checkout does not automatically load this dataset.
 
 Project Atlas contains **six explicitly synthetic sources** and six decision identities. Its traces are hand-curated and quote-validated; opening this example spends no AI credits. Uploaded records use live AI extraction.
 
