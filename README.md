@@ -1,24 +1,82 @@
-﻿# RAGret
+# RAGret
 
 <p align="center">
   <img src="frontend/public/brand/ragret-logo.png" alt="RAGret logo" width="160" />
 </p>
 
-**No more regrets. Just receipts.**
+**No more regrets. Just receipts.** Turn conversations and reference documents into a traceable history of what your team decided, what changed, and why.
 
-A local decision-memory app. Upload project records or conversation exports, extract persistent decision traces, and explore their people, constraints, evidence, and explicit dependencies in an interactive context graph.
+## Team
 
-## Current experience
+**KodoTech** - Future Forge: The ALMA Hackathon, October 22, 2026.
 
-For a simple explanation of the technology and data flow, read [How RAGret Works](TECHNICAL_OVERVIEW.md).
+| Name | Role |
+| --- | --- |
+| Raymund Zyron | Project team |
+| John Lorenzo | Project team |
+| Jhon Paul | Project team |
 
-Conversation uploads and reference documents have separate library pages. The graph distinguishes nine node types with icons, colors, counts, and visibility filters; hovering highlights connected context. Source cards preview saved evidence, with surrounding conversation or a PDF page thumbnail. Opening a preview jumps to the cited message or PDF page in the full viewer. Reference originals can be downloaded from the interface.
+## What it does
 
-The interface includes larger typography and controls, responsive layouts, a draggable graph with a minimap, and reduced-motion support. The supplied avatar is used for the website logo and icon. Demo conversations use Raymund Zyron, John Lorenzo, and Jhon Paul.
+Teams remember what they decided but often lose the reasoning across meeting notes, chat exports, and requirements. RAGret connects those records so users can investigate a decision and inspect the original evidence.
 
-Documentation: [setup](SETUP.md), [current architecture and UI behavior](docs/IMPLEMENTATION.md), [backend](backend/README.md), [frontend](frontend/README.md), and [Northstar demo walkthrough](examples/README.md). [RAGret_Blueprint.md](RAGret_Blueprint.md) is the original proposal; the implementation guide describes the shipped behavior.
+The MVP provides:
 
-## Run locally
+- **Separate conversation and reference libraries:** Upload PDF, TXT, Markdown, or pasted discussions. Conversations record team decisions; references supply background guidance.
+- **Persistent decision history:** Track proposals, approvals, rejections, postponements, and documented reversals while keeping release scopes separate.
+- **Interactive context graph:** Explore decisions, people, constraints, actions, facts, topics, groups, and sources with typed cards, filters, connected-path highlighting, and a minimap.
+- **Evidence previews and viewers:** Glimpse the cited conversation message or reference passage, open the exact message or PDF page, and download retained originals.
+- **AI questions with citations:** Ask why something was decided and receive an answer grounded in saved decisions and source passages.
+- **Dependency impact and exports:** Follow explicit dependencies and export the graph or individual decision traces.
+
+The responsive interface uses larger text and controls, locally bundled fonts, and reduced-motion support.
+
+## Demo video
+
+**Hosted viewing link:** Pending upload to YouTube, Loom, or Google Drive with public link access.
+
+Public download copies are available while the hosted viewing link is being prepared:
+
+- [MVP live demo - 1 minute 45 seconds, screen recording](https://raw.githubusercontent.com/Berlindraft/RAGret-ALMA/main/RAGret-Live-Demo.mp4)
+- [Narrated setup and walkthrough - 3 minutes 50 seconds](https://raw.githubusercontent.com/Berlindraft/RAGret-ALMA/main/RAGret-Setup-and-Demo.mp4)
+- [Project screenshots](https://github.com/Berlindraft/RAGret-ALMA/raw/refs/heads/main/RAGret-Screenshots.zip)
+
+For a local walkthrough, see the [Northstar demonstration guide](examples/README.md). It pairs a real 129-page NIST reference with a clearly fictional 64-message conversation, eight curated decisions, and 17 observations.
+
+## Slides
+
+Presentation PDF (public, no sign-in required):
+
+https://github.com/Berlindraft/RAGret-ALMA/blob/main/RAGret%20-%20KodoTech%20Presentation.pdf
+
+## How it works
+
+| Layer | Technology and purpose |
+| --- | --- |
+| Frontend | React, Vite, React Flow, Lucide, and Motion |
+| Backend | Python, FastAPI, and Pydantic validation |
+| Document processing | PyMuPDF for PDF text extraction and page rendering |
+| Storage | SQLite property graph, JSON text chunks, and retained original files |
+| AI | Configurable hosted model API for structured extraction and cited answers |
+| Retrieval | Weighted word matching, graph connections, and recency |
+
+```text
+Upload references + conversations
+    -> Extract text and preserve source locations
+    -> Retrieve relevant reference passages
+    -> AI extracts structured decision observations
+    -> Validate quotations and save the decision graph
+    -> Retrieve decisions and evidence for cited answers
+```
+
+The current development provider is DeepSeek. An ALMA adapter supports the organizer-provided endpoint once its actual schema and credentials are configured; live ALMA compatibility remains unverified. Claude Haiku and embeddings are not used in the current implementation. No vector database, PostgreSQL, or Neo4j service is required.
+
+RAGret adds a persistent decision layer to basic document RAG: stable decision identities, chronological observations, state-resolution rules, explicit dependencies, and source receipts. The model interprets text; deterministic backend checks validate the supplied quotations before records are saved. Adding a reference does not silently rewrite earlier decisions: re-extract an existing conversation to analyze it with updated references.
+
+Read the [technical overview](TECHNICAL_OVERVIEW.md) for the architecture, algorithms, and source-code map, or the [implementation guide](docs/IMPLEMENTATION.md) for UI behavior.
+
+## How to run it
+
 
 Requires Node.js 22+ and Python 3.11+.
 
@@ -44,20 +102,33 @@ npm --prefix frontend run dev -- --host 127.0.0.1
 
 Open **http://127.0.0.1:5173**. No PostgreSQL, Neo4j, or embedding service is required.
 
-## What the app does
+## Business plan
 
-- **Sources:** PDF, UTF-8 TXT/Markdown, and pasted meeting/chat/email exports. Conversation uploads automatically extract decision traces. Reference uploads are indexed without inferring approvals or spending model tokens, including the full 129-page NIST reference. Failed conversation extractions retain the source for retry.
-- **Reference grounding:** Conversation extraction retrieves up to eight relevant reference passages per batch. Saved reference citations must match those supplied passages verbatim. Reference guidance and team approval receipts stay distinct. Use **Re-extract** on a conversation to process it again with the current references; existing traces remain available if the new extraction fails.
-- **Persistent decision identity:** Canonical subject plus release/scope identifies a decision independently of its state and participants. Repeated mentions add observations and receipts. v1 and v2 remain separate decisions.
-- **Enrichment:** Extracts people and their roles, topical clusters, topics, constraints/risks, facts, and documented actions.
-- **Context graph:** Pan, zoom, move cards, filter colored node types, and highlight connected paths on hover. Conversations and reference documents have distinct cards and relationship styles. Preview cited messages with surrounding conversation, or inspect a reference quote and its PDF page, then open the full source at that message or page. The source libraries also show inline evidence glimpses. Focus on one trace, expand the graph, or view the full workspace.
-- **Decision register:** Search across decision content and connected context. Filter by state, person, constraint, and topical group.
-- **History:** Saved observations with source-supported dates. Same-date observations retain their extraction/source order; unknown dates stay unknown.
-- **Impact analysis:** Traverses explicit `depends_on` relationships across multiple hops, returning the chain and its source receipts. Sharing a topic or participant is not a dependency.
-- **Graph-backed questions:** Ranks stored decisions by lexical relevance, graph degree, and recency; expands documented decision links; generates a cited answer from the original passages and saved graph context.
-- **Exports:** Full property graph as JSON; individual traces as Markdown; source citations via clipboard.
+Full business-model PDF (public, no sign-in required):
 
-The interface uses React Flow, Lucide icons, restrained Motion transitions, locally bundled DM Sans/Manrope fonts, and native scrolling. Ctrl/Cmd+K focuses the question field. Reduced-motion preferences are respected.
+https://github.com/Berlindraft/RAGret-ALMA/blob/main/RAGret%20-%20Business%20Model%20-%20KodoTech.pdf
+
+This is a proposed direction for the hackathon MVP, not an existing commercial offering.
+
+| Area | Plan |
+| --- | --- |
+| Problem | Decision rationale becomes scattered across conversations and documents, making handovers, reviews, and change assessment difficult. |
+| Target users | Student and capstone teams, software teams, project managers, and teams onboarding new members. |
+| Solution and value | A searchable decision history with evidence, reducing time spent reconstructing context and helping users verify why a decision was made. |
+| Revenue or sustainability | A free local starter with user-supplied model credentials; a proposed PHP 499/month shared workspace for up to five members; and scoped organization deployment/support. Shared workspaces and billing require further development. Prices and willingness to pay remain unvalidated. |
+| Competition | Alternatives include document chat tools, meeting summarizers, team wikis, and manual decision logs. RAGret focuses on decision state, changes over time, dependencies, and direct evidence inspection. Comparative performance has not been benchmarked. |
+| Next steps | Proposed 90-day pilot: 15 interviews, five supervised teams, and two price acceptances as targets. Verify ALMA integration, add authentication and shared workspaces, introduce background extraction jobs, and evaluate retrieval and extraction quality. Messaging integrations are future work. |
+
+The current MVP is a local, single-user application. It has no paying customers or validated revenue model claimed here.
+
+## Further documentation
+
+- [Setup and troubleshooting](SETUP.md)
+- [Simple technical overview and architecture](TECHNICAL_OVERVIEW.md)
+- [Current implementation](docs/IMPLEMENTATION.md)
+- [Backend guide](backend/README.md) and [frontend guide](frontend/README.md)
+- [Hackathon demo and source provenance](examples/README.md)
+- [Original project blueprint](RAGret_Blueprint.md)
 
 ## Synthetic example
 
@@ -81,9 +152,9 @@ Choose **Create an empty workspace** before importing a larger private corpus. W
 
 Click a source title or **View** in either library to open its full viewer. PDFs support page navigation, zoom, text search, and downloading the original PDF. Conversations retain the full transcript with search; the prepared Northstar transcript displays speakers, timestamps, and session headings. Evidence receipts also offer **Open full source** at the cited PDF page. Older sources whose originals were not retained show an explicit excerpts-only notice.
 
-If the model API cannot be reached, graph questions show explicitly labeled **Saved evidence · AI unavailable**: related saved decision summaries, history, and citations. This is retrieval of existing records, not a generated answer, and it may not fully answer the question. Extraction still requires the model. Provider status distinguishes a configured key from a successful connection, and connection attempts time out after eight seconds rather than waiting for the full generation timeout. The next question retries the provider automatically.
+If the model API cannot be reached, graph questions show explicitly labeled **Saved evidence · AI unavailable**: related saved decision summaries, history, and citations. This is retrieval of existing records, not a generated answer, and it may not fully answer the question. Extraction still requires the model. Backend health information distinguishes a configured key from a successful connection, and connection attempts time out after eight seconds rather than waiting for the full generation timeout. The next question retries the provider automatically.
 
-The frontend checks DeepSeek access on load and when the browser reports coming online. Click the provider status in the top bar to check it again after switching networks. This uses authenticated model discovery rather than generating a completion. A successful check verifies connection, credentials, and availability of the configured model; live requests can still fail later.
+The frontend checks provider access on load and when the browser reports coming online. The connection badge is intentionally hidden from the interface. Authenticated model discovery checks access without generating a completion; live requests can still fail later. The backend check endpoint remains available for troubleshooting.
 
 Every observation references a stored chunk. Extracted quotations and people are validated against that chunk before saving. Invalid output receives one repair attempt; failure does not silently create demo traces. Graph nodes/edges are rebuilt transactionally from saved extractions. Deleting a source retracts observations and graph links that no remaining record supports. Repeated extraction of unchanged source content reuses saved traces without another model call.
 
