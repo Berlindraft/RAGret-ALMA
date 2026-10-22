@@ -10,6 +10,8 @@ A local decision-memory app. Upload project records or conversation exports, ext
 
 ## Current experience
 
+For a simple explanation of the technology and data flow, read [How RAGret Works](TECHNICAL_OVERVIEW.md).
+
 Conversation uploads and reference documents have separate library pages. The graph distinguishes nine node types with icons, colors, counts, and visibility filters; hovering highlights connected context. Source cards preview saved evidence, with surrounding conversation or a PDF page thumbnail. Opening a preview jumps to the cited message or PDF page in the full viewer. Reference originals can be downloaded from the interface.
 
 The interface includes larger typography and controls, responsive layouts, a draggable graph with a minimap, and reduced-motion support. The supplied avatar is used for the website logo and icon. Demo conversations use Raymund Zyron, John Lorenzo, and Jhon Paul.
