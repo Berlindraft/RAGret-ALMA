@@ -33,9 +33,10 @@ The responsive interface uses larger text and controls, locally bundled fonts, a
 
 ## Demo video
 
-**Hosted viewing link:** Pending upload to YouTube, Loom, or Google Drive with public link access.
+- [Watch the MVP live demo on YouTube](https://youtu.be/4OlcFbmS5CM)
+- [Watch the setup and narrated walkthrough on YouTube](https://youtu.be/xdFQnc7oE2U)
 
-Public download copies are available while the hosted viewing link is being prepared:
+Download copies and presentation screenshots:
 
 - [MVP live demo - 1 minute 45 seconds, screen recording](https://raw.githubusercontent.com/Berlindraft/RAGret-ALMA/main/RAGret-Live-Demo.mp4)
 - [Narrated setup and walkthrough - 3 minutes 50 seconds](https://raw.githubusercontent.com/Berlindraft/RAGret-ALMA/main/RAGret-Setup-and-Demo.mp4)
